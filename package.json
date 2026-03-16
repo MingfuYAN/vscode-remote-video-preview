@@ -1,0 +1,238 @@
+{
+  "name": "remote-video-preview",
+  "displayName": "%extension.displayName%",
+  "description": "%extension.description%",
+  "version": "0.1.2",
+  "publisher": "mfyan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MingfuYAN/vscode-remote-video-preview.git"
+  },
+  "bugs": {
+    "url": "https://github.com/MingfuYAN/vscode-remote-video-preview/issues"
+  },
+  "homepage": "https://github.com/MingfuYAN/vscode-remote-video-preview#readme",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other",
+    "Visualization"
+  ],
+  "keywords": [
+    "video",
+    "remote-ssh",
+    "ffmpeg",
+    "preview",
+    "transcode"
+  ],
+  "main": "./out/extension.js",
+  "extensionKind": [
+    "workspace"
+  ],
+  "capabilities": {
+    "virtualWorkspaces": {
+      "supported": false,
+      "description": "%capabilities.virtualWorkspaces.description%"
+    }
+  },
+  "activationEvents": [
+    "onCustomEditor:remoteVideoPreview.editor",
+    "onCommand:remoteVideoPreview.openWithPreview",
+    "onCommand:remoteVideoPreview.showMetadata",
+    "onCommand:remoteVideoPreview.generateCompatibleCache",
+    "onCommand:remoteVideoPreview.exportCurrentFrame",
+    "onCommand:remoteVideoPreview.showDebugLog"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "remoteVideoPreview.openWithPreview",
+        "title": "%commands.openWithPreview.title%",
+        "category": "%category.remoteVideoPreview%"
+      },
+      {
+        "command": "remoteVideoPreview.showMetadata",
+        "title": "%commands.showMetadata.title%",
+        "category": "%category.remoteVideoPreview%"
+      },
+      {
+        "command": "remoteVideoPreview.generateCompatibleCache",
+        "title": "%commands.generateCompatibleCache.title%",
+        "category": "%category.remoteVideoPreview%"
+      },
+      {
+        "command": "remoteVideoPreview.exportCurrentFrame",
+        "title": "%commands.exportCurrentFrame.title%",
+        "category": "%category.remoteVideoPreview%"
+      },
+      {
+        "command": "remoteVideoPreview.showDebugLog",
+        "title": "%commands.showDebugLog.title%",
+        "category": "%category.remoteVideoPreview%"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "remoteVideoPreview.openWithPreview",
+          "group": "navigation",
+          "when": "explorerResourceIsFolder == false && (resourceScheme == file || resourceScheme == vscode-remote)"
+        },
+        {
+          "command": "remoteVideoPreview.showMetadata",
+          "group": "navigation@1",
+          "when": "explorerResourceIsFolder == false && (resourceScheme == file || resourceScheme == vscode-remote)"
+        },
+        {
+          "command": "remoteVideoPreview.generateCompatibleCache",
+          "group": "navigation@2",
+          "when": "explorerResourceIsFolder == false && (resourceScheme == file || resourceScheme == vscode-remote)"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "remoteVideoPreview.showMetadata",
+          "group": "navigation",
+          "when": "activeCustomEditorId == remoteVideoPreview.editor"
+        },
+        {
+          "command": "remoteVideoPreview.generateCompatibleCache",
+          "group": "navigation@1",
+          "when": "activeCustomEditorId == remoteVideoPreview.editor"
+        },
+        {
+          "command": "remoteVideoPreview.exportCurrentFrame",
+          "group": "navigation@2",
+          "when": "activeCustomEditorId == remoteVideoPreview.editor"
+        }
+      ]
+    },
+    "customEditors": [
+      {
+        "viewType": "remoteVideoPreview.editor",
+        "displayName": "%customEditor.displayName%",
+        "selector": [
+          {
+            "filenamePattern": "*.mp4"
+          },
+          {
+            "filenamePattern": "*.mkv"
+          },
+          {
+            "filenamePattern": "*.avi"
+          },
+          {
+            "filenamePattern": "*.mov"
+          },
+          {
+            "filenamePattern": "*.webm"
+          },
+          {
+            "filenamePattern": "*.wmv"
+          },
+          {
+            "filenamePattern": "*.flv"
+          },
+          {
+            "filenamePattern": "*.m4v"
+          },
+          {
+            "filenamePattern": "*.mpg"
+          },
+          {
+            "filenamePattern": "*.mpeg"
+          },
+          {
+            "filenamePattern": "*.ts"
+          },
+          {
+            "filenamePattern": "*.m2ts"
+          },
+          {
+            "filenamePattern": "*.ogv"
+          }
+        ],
+        "priority": "option"
+      }
+    ],
+    "configuration": {
+      "title": "%configuration.title%",
+      "properties": {
+        "remoteVideoPreview.ffmpegPath": {
+          "type": "string",
+          "default": "ffmpeg",
+          "description": "%configuration.ffmpegPath.description%"
+        },
+        "remoteVideoPreview.ffprobePath": {
+          "type": "string",
+          "default": "ffprobe",
+          "description": "%configuration.ffprobePath.description%"
+        },
+        "remoteVideoPreview.autoTranscode": {
+          "type": "boolean",
+          "default": true,
+          "description": "%configuration.autoTranscode.description%"
+        },
+        "remoteVideoPreview.preferredContainer": {
+          "type": "string",
+          "enum": [
+            "webm",
+            "mp4"
+          ],
+          "default": "mp4",
+          "description": "%configuration.preferredContainer.description%"
+        },
+        "remoteVideoPreview.maxBitrateMbps": {
+          "type": "number",
+          "default": 8,
+          "minimum": 1,
+          "maximum": 100,
+          "description": "%configuration.maxBitrateMbps.description%"
+        },
+        "remoteVideoPreview.cacheDirectory": {
+          "type": "string",
+          "default": "",
+          "description": "%configuration.cacheDirectory.description%"
+        },
+        "remoteVideoPreview.cleanupPolicy": {
+          "type": "string",
+          "enum": [
+            "onClose",
+            "sessionEnd",
+            "retained",
+            "manual"
+          ],
+          "default": "retained",
+          "description": "%configuration.cleanupPolicy.description%"
+        },
+        "remoteVideoPreview.cacheMaxAgeHours": {
+          "type": "number",
+          "default": 168,
+          "minimum": 0,
+          "description": "%configuration.cacheMaxAgeHours.description%"
+        },
+        "remoteVideoPreview.cacheMaxSizeGb": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "description": "%configuration.cacheMaxSizeGb.description%"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "tsc --noEmit -p ./",
+    "test": "npm run compile && node --test out/test/*.test.js",
+    "package:vsix": "npm run compile && vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.6.1",
+    "@types/node": "^24.3.0",
+    "@types/vscode": "^1.90.0",
+    "typescript": "^5.8.3"
+  }
+}

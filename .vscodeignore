@@ -1,0 +1,15 @@
+.vscode/**
+.github/**
+out/test/**
+src/**
+artifacts/**
+dist/**
+test_video/**
+README.zh-CN.md
+package-lock.json
+tsconfig.json
+.gitignore
+task_plan.md
+notes.md
+3-第二届开源计划奖励-评分细则.pdf
+0-第二届开源奖励计划宣讲PPT.pdf

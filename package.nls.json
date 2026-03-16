@@ -1,0 +1,22 @@
+{
+  "extension.displayName": "Remote Video Preview",
+  "extension.description": "Preview local and Remote SSH video files in VS Code with metadata inspection, compatible cache generation, and FFmpeg-powered transcoding.",
+  "capabilities.virtualWorkspaces.description": "Remote Video Preview requires direct filesystem access to invoke ffmpeg and ffprobe.",
+  "category.remoteVideoPreview": "Remote Video Preview",
+  "commands.openWithPreview.title": "Open With Remote Video Preview",
+  "commands.showMetadata.title": "Focus Video Metadata",
+  "commands.generateCompatibleCache.title": "Generate Compatible Cache",
+  "commands.exportCurrentFrame.title": "Export Current Frame",
+  "commands.showDebugLog.title": "Show Debug Log",
+  "customEditor.displayName": "Remote Video Preview",
+  "configuration.title": "Remote Video Preview",
+  "configuration.ffmpegPath.description": "Path or command name for the ffmpeg executable.",
+  "configuration.ffprobePath.description": "Path or command name for the ffprobe executable.",
+  "configuration.autoTranscode.description": "Automatically generate a compatible cache when the source video cannot be played directly.",
+  "configuration.preferredContainer.description": "Preferred output container for generated compatible caches.",
+  "configuration.maxBitrateMbps.description": "Target max bitrate for generated compatible caches.",
+  "configuration.cacheDirectory.description": "Optional absolute or workspace-relative directory for transcoded cache files. Leave empty to use the workspace cache folder beside the source video.",
+  "configuration.cleanupPolicy.description": "When generated cache files should be deleted. Use retained to keep caches until the age or size limits trim them.",
+  "configuration.cacheMaxAgeHours.description": "Delete retained cache files older than this many hours. Set to 0 to disable age-based cleanup.",
+  "configuration.cacheMaxSizeGb.description": "Delete the oldest retained cache files when the cache folder grows beyond this size in GB. Set to 0 to disable size-based cleanup."
+}

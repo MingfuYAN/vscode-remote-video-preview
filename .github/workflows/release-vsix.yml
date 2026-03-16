@@ -1,0 +1,58 @@
+name: Release VSIX
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Package VSIX
+        run: npm run package:vsix
+
+      - name: Collect package artifact
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          shopt -s nullglob
+          files=( *.vsix )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No VSIX file was produced."
+            exit 1
+          fi
+          mv "${files[@]}" artifacts/
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: remote-video-preview-vsix
+          path: artifacts/*.vsix
+
+      - name: Publish GitHub Release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.vsix
+          generate_release_notes: true

@@ -1,0 +1,22 @@
+{
+  "extension.displayName": "远程视频预览",
+  "extension.description": "在 VS Code 中预览本地和 Remote SSH 视频文件，并支持元数据查看、兼容缓存生成和基于 FFmpeg 的转码。",
+  "capabilities.virtualWorkspaces.description": "Remote Video Preview 需要直接访问文件系统以调用 ffmpeg 和 ffprobe。",
+  "category.remoteVideoPreview": "远程视频预览",
+  "commands.openWithPreview.title": "使用远程视频预览打开",
+  "commands.showMetadata.title": "聚焦视频元数据",
+  "commands.generateCompatibleCache.title": "生成兼容缓存",
+  "commands.exportCurrentFrame.title": "导出当前帧",
+  "commands.showDebugLog.title": "显示调试日志",
+  "customEditor.displayName": "远程视频预览",
+  "configuration.title": "远程视频预览",
+  "configuration.ffmpegPath.description": "ffmpeg 可执行文件的路径或命令名。",
+  "configuration.ffprobePath.description": "ffprobe 可执行文件的路径或命令名。",
+  "configuration.autoTranscode.description": "当源视频无法直接播放时，自动生成兼容缓存。",
+  "configuration.preferredContainer.description": "生成兼容缓存时优先使用的输出容器格式。",
+  "configuration.maxBitrateMbps.description": "生成兼容缓存时使用的目标最大码率。",
+  "configuration.cacheDirectory.description": "可选的绝对路径或工作区相对路径，用于存放转码缓存文件。留空时会使用源视频旁边的工作区缓存目录。",
+  "configuration.cleanupPolicy.description": "何时删除生成的缓存文件。选择 retained 时，会保留缓存，直到超过时长或容量限制后再裁剪。",
+  "configuration.cacheMaxAgeHours.description": "删除保留时间超过该小时数的缓存文件。设为 0 可禁用按时间清理。",
+  "configuration.cacheMaxSizeGb.description": "当缓存目录总大小超过该值（GB）时，删除最旧的缓存文件。设为 0 可禁用按容量清理。"
+}

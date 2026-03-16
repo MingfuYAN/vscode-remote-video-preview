@@ -1,0 +1,49 @@
+name: Publish Marketplace
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Package VSIX
+        run: npm run package:vsix
+
+      - name: Publish to Visual Studio Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        shell: bash
+        run: |
+          if [ -z "${VSCE_PAT}" ]; then
+            echo "VSCE_PAT secret is not configured. Skipping Marketplace publish."
+            exit 0
+          fi
+
+          shopt -s nullglob
+          files=( *.vsix )
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No VSIX file was produced."
+            exit 1
+          fi
+
+          npx @vscode/vsce publish --packagePath "${files[0]}" --pat "${VSCE_PAT}" --skip-duplicate
