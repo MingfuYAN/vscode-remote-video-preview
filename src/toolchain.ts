@@ -2,6 +2,7 @@ import { ChildProcessByStdio, spawn } from "child_process";
 import { Readable } from "stream";
 import * as vscode from "vscode";
 import { buildFrameExportArgs, buildTranscodeArgs, pickTranscodeEncoders } from "./core/ffmpegArgs";
+import { PreferredContainer } from "./core/videoTypes";
 import { TranscodeProgress, VideoProbeResult, VideoStreamInfo } from "./core/videoTypes";
 import { getExtensionConfig } from "./config";
 import { ExtensionLogger } from "./logger";
@@ -391,20 +392,21 @@ export class VideoToolchain {
   public async startCompatibleCache(
     sourceUri: vscode.Uri,
     outputUri: vscode.Uri,
-    durationSeconds?: number
+    durationSeconds: number | undefined,
+    container: PreferredContainer
   ): Promise<TranscodeJob> {
     const configuration = getExtensionConfig();
     const sourcePath = toHostPath(sourceUri);
     const outputPath = toHostPath(outputUri);
     const encoderCapabilities = await this.getAvailableEncoders(configuration.ffmpegPath);
-    const selectedEncoders = pickTranscodeEncoders(configuration.preferredContainer, encoderCapabilities.keys());
+    const selectedEncoders = pickTranscodeEncoders(container, encoderCapabilities.keys());
     const enableExperimentalCodecs = [selectedEncoders.videoEncoder, selectedEncoders.audioEncoder].some((encoderName) => {
       return encoderCapabilities.get(encoderName)?.experimental ?? false;
     });
     const args = buildTranscodeArgs({
       inputPath: sourcePath,
       outputPath,
-      container: configuration.preferredContainer,
+      container,
       maxBitrateMbps: configuration.maxBitrateMbps,
       videoEncoder: selectedEncoders.videoEncoder,
       audioEncoder: selectedEncoders.audioEncoder,
@@ -413,7 +415,7 @@ export class VideoToolchain {
     this.logger.info("Starting FFmpeg compatible cache generation.", {
       source: sourceUri,
       output: outputUri,
-      container: configuration.preferredContainer,
+      container,
       maxBitrateMbps: configuration.maxBitrateMbps,
       ffmpegPath: configuration.ffmpegPath,
       videoEncoder: selectedEncoders.videoEncoder,

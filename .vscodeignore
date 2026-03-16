@@ -5,6 +5,7 @@ src/**
 artifacts/**
 dist/**
 test_video/**
+.remote-video-preview-cache/**
 README.zh-CN.md
 package-lock.json
 tsconfig.json

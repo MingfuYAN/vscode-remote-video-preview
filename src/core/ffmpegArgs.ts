@@ -41,7 +41,7 @@ export function pickTranscodeEncoders(
   }
 
   const videoEncoder = pickFirstAvailable(availableEncoders, ["libx264"]);
-  const audioEncoder = pickFirstAvailable(availableEncoders, ["aac_at", "aac", "libmp3lame"]);
+  const audioEncoder = pickFirstAvailable(availableEncoders, ["libmp3lame", "aac_at", "aac"]);
 
   if (!videoEncoder || !audioEncoder) {
     throw new Error("The current ffmpeg build cannot create MP4-compatible caches because required encoders are missing.");
@@ -54,9 +54,10 @@ export function buildTranscodeArgs(options: BuildTranscodeArgsOptions): string[]
   const videoBitrate = bitrateValue(options.maxBitrateMbps);
   const bufferBitrate = bitrateValue(options.maxBitrateMbps * 2);
   const videoEncoder = options.videoEncoder ?? (options.container === "webm" ? "libvpx" : "libx264");
-  const audioEncoder = options.audioEncoder ?? (options.container === "webm" ? "libvorbis" : "aac");
+  const audioEncoder = options.audioEncoder ?? (options.container === "webm" ? "libvorbis" : "libmp3lame");
   const enableExperimentalCodecs = options.enableExperimentalCodecs ?? false;
   const outputFormat = options.container === "webm" ? "webm" : "mp4";
+  const isPartialOutput = options.outputPath.toLowerCase().endsWith(".partial");
   const baseArgs = [
     "-hide_banner",
     "-loglevel",
@@ -125,7 +126,7 @@ export function buildTranscodeArgs(options: BuildTranscodeArgsOptions): string[]
     "-bufsize",
     bufferBitrate,
     "-movflags",
-    "+faststart",
+    isPartialOutput ? "frag_keyframe+empty_moov+default_base_moof" : "+faststart",
     "-c:a",
     audioEncoder,
     ...audioArgs,

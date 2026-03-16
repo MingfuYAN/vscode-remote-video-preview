@@ -4,7 +4,7 @@ import { CacheManager } from "./cacheManager";
 import { assessPlaybackSupport, inferMimeTypeFromPath } from "./core/playbackSupport";
 import { isLikelyCompleteCache } from "./core/cacheValidation";
 import { formatBitrate, formatBytes, formatDuration, sleep } from "./core/utils";
-import { PlaybackAssessment, TranscodeProgress, VideoProbeResult } from "./core/videoTypes";
+import { PlaybackAssessment, PreferredContainer, TranscodeProgress, VideoProbeResult } from "./core/videoTypes";
 import { getExtensionConfig } from "./config";
 import { ExtensionLogger } from "./logger";
 import {
@@ -480,20 +480,24 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
     }
   }
 
-  private async startCompatibleCache(session: Session, switchPlayback: boolean): Promise<TranscodeJob | undefined> {
+  private async startCompatibleCache(
+    session: Session,
+    switchPlayback: boolean,
+    container: PreferredContainer = getExtensionConfig().preferredContainer
+  ): Promise<TranscodeJob | undefined> {
     if (!session.probe) {
       this.logger.warn("Compatible cache requested before probe metadata existed.", { source: session.sourceUri });
       return undefined;
     }
 
     if (!session.assessment) {
-      session.assessment = assessPlaybackSupport(session.probe, getExtensionConfig().preferredContainer);
+      session.assessment = assessPlaybackSupport(session.probe, container);
     }
 
-    session.cacheUri = await this.ensureCacheUri(session, getExtensionConfig().preferredContainer);
+    session.cacheUri = await this.ensureCacheUri(session, container);
 
     if (await this.cacheManager.exists(session.cacheUri)) {
-      const cacheIsUsable = await this.validateCompatibleCache(session, session.cacheUri);
+      const cacheIsUsable = await this.validateCompatibleCache(session, session.cacheUri, container);
       if (!cacheIsUsable) {
         this.logger.warn("Discarding incomplete compatible cache before starting a new transcode.", {
           source: session.sourceUri,
@@ -533,7 +537,8 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
     const job = await this.toolchain.startCompatibleCache(
       session.sourceUri,
       transcodeOutputUri,
-      session.probe.durationSeconds
+      session.probe.durationSeconds,
+      container
     );
     this.logger.info("Compatible cache job created.", {
       source: session.sourceUri,
@@ -547,7 +552,7 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
       void this.pushState(session);
     });
 
-    void this.promoteCacheWhenReady(session, switchPlayback, transcodeOutputUri);
+    void this.promoteCacheWhenReady(session, switchPlayback, transcodeOutputUri, container);
 
     void job.completion
       .then(async () => {
@@ -588,9 +593,10 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
   private async promoteCacheWhenReady(
     session: Session,
     switchPlayback: boolean,
-    transcodeOutputUri: vscode.Uri
+    transcodeOutputUri: vscode.Uri,
+    container: PreferredContainer
   ): Promise<void> {
-    if (!session.cacheUri || this.readinessWatchers.has(session.key) || session.assessment?.mode !== "transcode") {
+    if (!session.cacheUri || this.readinessWatchers.has(session.key) || !this.supportsGrowingPlayback(container)) {
       return;
     }
 
@@ -600,7 +606,7 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
       while (session.transcodeJob && !session.transcodeJob.isFinished) {
         const size = await this.cacheManager.getSize(transcodeOutputUri);
 
-        if (size !== undefined && size >= 256 * 1024) {
+        if (size !== undefined && size >= 768 * 1024) {
           if (switchPlayback || session.assessment?.mode === "transcode") {
             session.playbackUri = transcodeOutputUri;
           }
@@ -695,6 +701,24 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
             session.cacheUri &&
             !this.cacheManager.supportsWebviewPlayback(session.cacheUri)
           );
+          const cacheContainer = session.cacheUri ? this.containerForUri(session.cacheUri) : undefined;
+
+          if (playbackCacheFailed && cacheContainer === "webm" && !session.transcodeJob) {
+            const retryWarning = t("The generated WebM cache could not be loaded in the VS Code webview. Retrying with an MP4-compatible cache.");
+            if (!session.warnings.includes(retryWarning)) {
+              session.warnings = [retryWarning, ...session.warnings];
+            }
+            if (session.cacheUri) {
+              await this.cacheManager.removeQuietly(session.cacheUri);
+            }
+            session.cacheUri = undefined;
+            session.playbackUri = session.sourceUri;
+            session.error = undefined;
+            session.status = t("Compatible cache failed to load. Regenerating it as MP4.");
+            await this.pushState(session, panel);
+            await this.startCompatibleCache(session, true, "mp4");
+            return;
+          }
 
           if (playbackCacheFailed && session.assessment?.mode === "direct") {
             const fallbackWarning = cacheSchemeUnsupported
@@ -790,7 +814,11 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
     session: Session,
     preferredContainer: ReturnType<typeof getExtensionConfig>["preferredContainer"]
   ): Promise<vscode.Uri> {
-    if (session.cacheUri && this.cacheManager.supportsWebviewPlayback(session.cacheUri)) {
+    if (
+      session.cacheUri &&
+      this.cacheManager.supportsWebviewPlayback(session.cacheUri) &&
+      this.containerForUri(session.cacheUri) === preferredContainer
+    ) {
       this.cacheManager.recordSessionFile(session.key, session.cacheUri);
       return session.cacheUri;
     }
@@ -816,32 +844,40 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
     session: Session,
     preferredContainer: ReturnType<typeof getExtensionConfig>["preferredContainer"]
   ): Promise<vscode.Uri | undefined> {
-    const cacheUri = await this.ensureCacheUri(session, preferredContainer);
-    if (!(await this.cacheManager.exists(cacheUri))) {
-      return undefined;
+    for (const container of this.compatibleContainerCandidates(preferredContainer)) {
+      const cacheUri = await this.ensureCacheUri(session, container);
+      if (!(await this.cacheManager.exists(cacheUri))) {
+        continue;
+      }
+
+      const cacheIsUsable = await this.validateCompatibleCache(session, cacheUri, container);
+      if (cacheIsUsable) {
+        session.cacheUri = cacheUri;
+        return cacheUri;
+      }
+
+      this.logger.warn("Ignoring incomplete or unsupported compatible cache.", {
+        source: session.sourceUri,
+        cache: cacheUri
+      });
+      await this.cacheManager.removeQuietly(cacheUri);
     }
 
-    const cacheIsUsable = await this.validateCompatibleCache(session, cacheUri);
-    if (cacheIsUsable) {
-      return cacheUri;
-    }
-
-    this.logger.warn("Ignoring incomplete or unsupported compatible cache.", {
-      source: session.sourceUri,
-      cache: cacheUri
-    });
-    await this.cacheManager.removeQuietly(cacheUri);
     return undefined;
   }
 
-  private async validateCompatibleCache(session: Session, cacheUri: vscode.Uri): Promise<boolean> {
+  private async validateCompatibleCache(
+    session: Session,
+    cacheUri: vscode.Uri,
+    preferredContainer: PreferredContainer
+  ): Promise<boolean> {
     if (!session.probe) {
       return false;
     }
 
     try {
       const cacheProbe = await this.toolchain.probeVideo(cacheUri);
-      return isLikelyCompleteCache(session.probe, cacheProbe, getExtensionConfig().preferredContainer);
+      return isLikelyCompleteCache(session.probe, cacheProbe, preferredContainer);
     } catch (error) {
       this.logger.warn("Compatible cache validation failed.", {
         source: session.sourceUri,
@@ -912,6 +948,25 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
     }
 
     return inferMimeTypeFromPath(session.sourceUri.path);
+  }
+
+  private compatibleContainerCandidates(preferredContainer: PreferredContainer): PreferredContainer[] {
+    return preferredContainer === "mp4" ? ["mp4", "webm"] : ["webm", "mp4"];
+  }
+
+  private containerForUri(uri: vscode.Uri): PreferredContainer | undefined {
+    const path = uri.path.toLowerCase();
+    if (path.endsWith(".mp4") || path.endsWith(".mp4.partial")) {
+      return "mp4";
+    }
+    if (path.endsWith(".webm") || path.endsWith(".webm.partial")) {
+      return "webm";
+    }
+    return undefined;
+  }
+
+  private supportsGrowingPlayback(container: PreferredContainer): boolean {
+    return container === "mp4";
   }
 
   private progressMessage(progress: TranscodeProgress): string {

@@ -43,7 +43,7 @@ test("transcode args explicitly set mp4 output format for temporary files", () =
   assert.notEqual(formatIndex, -1);
   assert.equal(args[formatIndex + 1], "mp4");
   assert.equal(args.at(-1), "/tmp/output.mp4.partial");
-  assert.equal(args.includes("+faststart"), true);
+  assert.equal(args.includes("frag_keyframe+empty_moov+default_base_moof"), true);
 });
 
 test("encoder selection prefers vorbis for webm audio", () => {
@@ -54,12 +54,25 @@ test("encoder selection prefers vorbis for webm audio", () => {
   });
 });
 
-test("encoder selection prefers aac for mp4 audio", () => {
+test("encoder selection prefers mp3 for mp4 audio", () => {
   const selected = pickTranscodeEncoders("mp4", ["libx264", "libmp3lame", "aac", "aac_at"]);
   assert.deepEqual(selected, {
     videoEncoder: "libx264",
-    audioEncoder: "aac_at"
+    audioEncoder: "libmp3lame"
   });
+});
+
+test("non-partial mp4 outputs keep faststart metadata relocation", () => {
+  const args = buildTranscodeArgs({
+    inputPath: "/tmp/input.mkv",
+    outputPath: "/tmp/output.mp4",
+    container: "mp4",
+    maxBitrateMbps: 8,
+    videoEncoder: "libx264",
+    audioEncoder: "libmp3lame"
+  });
+
+  assert.equal(args.includes("+faststart"), true);
 });
 
 test("experimental encoders add strict mode", () => {
