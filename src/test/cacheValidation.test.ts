@@ -57,3 +57,24 @@ test("cache is rejected when duration is far shorter than the source", () => {
     false
   );
 });
+
+test("mp4 cache is rejected when it still uses mp3 audio", () => {
+  assert.equal(
+    isLikelyCompleteCache(
+      makeProbeResult({ containerNames: ["mp4"], formatName: "mp4", streams: [
+        { index: 0, codecType: "video", codecName: "h264", width: 1280, height: 720 },
+        { index: 1, codecType: "audio", codecName: "aac" }
+      ] }),
+      makeProbeResult({
+        containerNames: ["mp4"],
+        formatName: "mp4",
+        streams: [
+          { index: 0, codecType: "video", codecName: "h264", width: 1280, height: 720 },
+          { index: 1, codecType: "audio", codecName: "mp3" }
+        ]
+      }),
+      "mp4"
+    ),
+    false
+  );
+});

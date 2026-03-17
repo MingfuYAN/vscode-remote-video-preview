@@ -1,7 +1,7 @@
 import { ChildProcessByStdio, spawn } from "child_process";
 import { Readable } from "stream";
 import * as vscode from "vscode";
-import { buildFrameExportArgs, buildTranscodeArgs, pickTranscodeEncoders } from "./core/ffmpegArgs";
+import { buildFinalizeCacheArgs, buildFrameExportArgs, buildTranscodeArgs, pickTranscodeEncoders } from "./core/ffmpegArgs";
 import { PreferredContainer } from "./core/videoTypes";
 import { TranscodeProgress, VideoProbeResult, VideoStreamInfo } from "./core/videoTypes";
 import { getExtensionConfig } from "./config";
@@ -454,6 +454,31 @@ export class VideoToolchain {
         source: sourceUri,
         output: outputUri,
         seconds: seconds.toFixed(3)
+      }
+    );
+  }
+
+  public async finalizeCompatibleCache(
+    inputUri: vscode.Uri,
+    outputUri: vscode.Uri,
+    container: PreferredContainer
+  ): Promise<void> {
+    const configuration = getExtensionConfig();
+    const inputPath = toHostPath(inputUri);
+    const outputPath = toHostPath(outputUri);
+    await runBufferedCommand(
+      configuration.ffmpegPath,
+      buildFinalizeCacheArgs({
+        inputPath,
+        outputPath,
+        container
+      }),
+      this.logger,
+      {
+        source: inputUri,
+        output: outputUri,
+        container,
+        commandPurpose: "finalize-compatible-cache"
       }
     );
   }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildFrameExportArgs, buildTranscodeArgs, pickTranscodeEncoders } from "../core/ffmpegArgs";
+import { buildFinalizeCacheArgs, buildFrameExportArgs, buildTranscodeArgs, pickTranscodeEncoders } from "../core/ffmpegArgs";
 
 test("transcode args are emitted as a safe array for webm", () => {
   const args = buildTranscodeArgs({
@@ -73,11 +73,11 @@ test("encoder selection prefers vorbis for webm audio", () => {
   });
 });
 
-test("encoder selection prefers mp3 for mp4 audio", () => {
+test("encoder selection prefers aac for mp4 audio", () => {
   const selected = pickTranscodeEncoders("mp4", ["libx264", "libmp3lame", "aac", "aac_at"]);
   assert.deepEqual(selected, {
     videoEncoder: "libx264",
-    audioEncoder: "libmp3lame"
+    audioEncoder: "aac"
   });
 });
 
@@ -92,6 +92,32 @@ test("non-partial mp4 outputs keep faststart metadata relocation", () => {
   });
 
   assert.equal(args.includes("+faststart"), true);
+});
+
+test("finalizing mp4 caches remuxes them with faststart", () => {
+  const args = buildFinalizeCacheArgs({
+    inputPath: "/tmp/output.mp4.partial",
+    outputPath: "/tmp/output.mp4",
+    container: "mp4"
+  });
+
+  assert.deepEqual(args, [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-y",
+    "-i",
+    "/tmp/output.mp4.partial",
+    "-map",
+    "0",
+    "-c",
+    "copy",
+    "-movflags",
+    "+faststart",
+    "-f",
+    "mp4",
+    "/tmp/output.mp4"
+  ]);
 });
 
 test("unknown bitrate sources still honor the configured bitrate ceiling", () => {

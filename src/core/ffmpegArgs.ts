@@ -18,6 +18,12 @@ export interface SelectedTranscodeEncoders {
   audioEncoder: string;
 }
 
+export interface BuildFinalizeCacheArgsOptions {
+  inputPath: string;
+  outputPath: string;
+  container: PreferredContainer;
+}
+
 function bitrateValue(bitsPerSecond: number): string {
   const safeBitsPerSecond = Math.max(32_000, Math.round(bitsPerSecond));
 
@@ -115,7 +121,7 @@ export function pickTranscodeEncoders(
   }
 
   const videoEncoder = pickFirstAvailable(availableEncoders, ["libx264"]);
-  const audioEncoder = pickFirstAvailable(availableEncoders, ["libmp3lame", "aac_at", "aac"]);
+  const audioEncoder = pickFirstAvailable(availableEncoders, ["aac", "aac_at", "libmp3lame"]);
 
   if (!videoEncoder || !audioEncoder) {
     throw new Error("The current ffmpeg build cannot create MP4-compatible caches because required encoders are missing.");
@@ -207,6 +213,46 @@ export function buildTranscodeArgs(options: BuildTranscodeArgsOptions): string[]
     "-c:a",
     audioEncoder,
     ...audioArgs,
+    "-f",
+    outputFormat,
+    options.outputPath
+  ];
+}
+
+export function buildFinalizeCacheArgs(options: BuildFinalizeCacheArgsOptions): string[] {
+  const outputFormat = options.container === "webm" ? "webm" : "mp4";
+
+  if (options.container === "webm") {
+    return [
+      "-hide_banner",
+      "-loglevel",
+      "error",
+      "-y",
+      "-i",
+      options.inputPath,
+      "-map",
+      "0",
+      "-c",
+      "copy",
+      "-f",
+      outputFormat,
+      options.outputPath
+    ];
+  }
+
+  return [
+    "-hide_banner",
+    "-loglevel",
+    "error",
+    "-y",
+    "-i",
+    options.inputPath,
+    "-map",
+    "0",
+    "-c",
+    "copy",
+    "-movflags",
+    "+faststart",
     "-f",
     outputFormat,
     options.outputPath

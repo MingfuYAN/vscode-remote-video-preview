@@ -560,7 +560,11 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
         listener.dispose();
         session.transcodeJob = undefined;
         session.transcodeProgress = { status: "finished", percent: 100 };
-        await vscode.workspace.fs.rename(transcodeOutputUri, session.cacheUri!, { overwrite: true });
+        if (!session.cacheUri) {
+          throw new Error("Missing cache output URI after transcoding completed.");
+        }
+        await this.toolchain.finalizeCompatibleCache(transcodeOutputUri, session.cacheUri, container);
+        await this.cacheManager.removeQuietly(transcodeOutputUri);
         if (switchPlayback || session.assessment?.mode === "transcode") {
           session.playbackUri = session.cacheUri;
         }
@@ -846,13 +850,14 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
     preferredContainer: ReturnType<typeof getExtensionConfig>["preferredContainer"]
   ): Promise<vscode.Uri | undefined> {
     for (const container of this.compatibleContainerCandidates(preferredContainer)) {
-      const cacheUri = await this.ensureCacheUri(session, container);
+      const cacheUri = await this.cacheManager.getCacheUri(session.sourceUri, container);
       if (!(await this.cacheManager.exists(cacheUri))) {
         continue;
       }
 
       const cacheIsUsable = await this.validateCompatibleCache(session, cacheUri, container);
       if (cacheIsUsable) {
+        this.cacheManager.recordSessionFile(session.key, cacheUri);
         session.cacheUri = cacheUri;
         return cacheUri;
       }
@@ -864,6 +869,7 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
       await this.cacheManager.removeQuietly(cacheUri);
     }
 
+    session.cacheUri = undefined;
     return undefined;
   }
 
