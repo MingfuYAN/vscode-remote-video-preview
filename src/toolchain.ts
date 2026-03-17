@@ -393,7 +393,8 @@ export class VideoToolchain {
     sourceUri: vscode.Uri,
     outputUri: vscode.Uri,
     durationSeconds: number | undefined,
-    container: PreferredContainer
+    container: PreferredContainer,
+    sourceProbe?: VideoProbeResult
   ): Promise<TranscodeJob> {
     const configuration = getExtensionConfig();
     const sourcePath = toHostPath(sourceUri);
@@ -408,6 +409,9 @@ export class VideoToolchain {
       outputPath,
       container,
       maxBitrateMbps: configuration.maxBitrateMbps,
+      sourceBitRate: sourceProbe?.bitRate,
+      sourceVideoBitRate: sourceProbe?.streams.find((stream) => stream.codecType === "video")?.bitRate,
+      sourceAudioBitRate: sourceProbe?.streams.find((stream) => stream.codecType === "audio")?.bitRate,
       videoEncoder: selectedEncoders.videoEncoder,
       audioEncoder: selectedEncoders.audioEncoder,
       enableExperimentalCodecs

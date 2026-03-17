@@ -538,7 +538,8 @@ export class RemoteVideoPreviewProvider implements vscode.CustomReadonlyEditorPr
       session.sourceUri,
       transcodeOutputUri,
       session.probe.durationSeconds,
-      container
+      container,
+      session.probe
     );
     this.logger.info("Compatible cache job created.", {
       source: session.sourceUri,

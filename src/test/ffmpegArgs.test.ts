@@ -46,6 +46,25 @@ test("transcode args explicitly set mp4 output format for temporary files", () =
   assert.equal(args.includes("frag_keyframe+empty_moov+default_base_moof"), true);
 });
 
+test("low bitrate sources keep mp4 cache bitrates modest", () => {
+  const args = buildTranscodeArgs({
+    inputPath: "/tmp/input.mp4",
+    outputPath: "/tmp/output.mp4.partial",
+    container: "mp4",
+    maxBitrateMbps: 8,
+    sourceBitRate: 134_571,
+    sourceVideoBitRate: 91_353,
+    sourceAudioBitRate: 35_418,
+    videoEncoder: "libx264",
+    audioEncoder: "libmp3lame"
+  });
+
+  const videoBitrateIndex = args.indexOf("-b:v");
+  const audioBitrateIndex = args.indexOf("-b:a");
+  assert.equal(args[videoBitrateIndex + 1], "228k");
+  assert.equal(args[audioBitrateIndex + 1], "64k");
+});
+
 test("encoder selection prefers vorbis for webm audio", () => {
   const selected = pickTranscodeEncoders("webm", ["libvpx", "vorbis", "libopus", "aac"]);
   assert.deepEqual(selected, {
@@ -73,6 +92,20 @@ test("non-partial mp4 outputs keep faststart metadata relocation", () => {
   });
 
   assert.equal(args.includes("+faststart"), true);
+});
+
+test("unknown bitrate sources still honor the configured bitrate ceiling", () => {
+  const args = buildTranscodeArgs({
+    inputPath: "/tmp/input.mp4",
+    outputPath: "/tmp/output.mp4",
+    container: "mp4",
+    maxBitrateMbps: 8,
+    videoEncoder: "libx264",
+    audioEncoder: "libmp3lame"
+  });
+
+  const videoBitrateIndex = args.indexOf("-b:v");
+  assert.equal(args[videoBitrateIndex + 1], "8M");
 });
 
 test("experimental encoders add strict mode", () => {

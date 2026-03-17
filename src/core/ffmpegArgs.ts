@@ -5,6 +5,9 @@ export interface BuildTranscodeArgsOptions {
   outputPath: string;
   container: PreferredContainer;
   maxBitrateMbps: number;
+  sourceBitRate?: number;
+  sourceVideoBitRate?: number;
+  sourceAudioBitRate?: number;
   videoEncoder?: string;
   audioEncoder?: string;
   enableExperimentalCodecs?: boolean;
@@ -15,8 +18,79 @@ export interface SelectedTranscodeEncoders {
   audioEncoder: string;
 }
 
-function bitrateValue(megabitsPerSecond: number): string {
-  return `${Math.max(1, Math.round(megabitsPerSecond))}M`;
+function bitrateValue(bitsPerSecond: number): string {
+  const safeBitsPerSecond = Math.max(32_000, Math.round(bitsPerSecond));
+
+  if (safeBitsPerSecond >= 1_000_000 && safeBitsPerSecond % 1_000_000 === 0) {
+    return `${safeBitsPerSecond / 1_000_000}M`;
+  }
+
+  return `${Math.round(safeBitsPerSecond / 1000)}k`;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function roundToNearest(value: number, step: number): number {
+  return Math.round(value / step) * step;
+}
+
+function deriveSourceVideoBitrate(options: BuildTranscodeArgsOptions): number | undefined {
+  if (options.sourceVideoBitRate && Number.isFinite(options.sourceVideoBitRate) && options.sourceVideoBitRate > 0) {
+    return options.sourceVideoBitRate;
+  }
+
+  if (options.sourceBitRate && Number.isFinite(options.sourceBitRate) && options.sourceBitRate > 0) {
+    const sourceAudioBitRate = options.sourceAudioBitRate ?? 0;
+    return Math.max(64_000, options.sourceBitRate - sourceAudioBitRate);
+  }
+
+  return undefined;
+}
+
+function selectVideoBitrate(options: BuildTranscodeArgsOptions): number {
+  const configuredBitrate = Math.max(250_000, Math.round(options.maxBitrateMbps * 1_000_000));
+  const sourceVideoBitRate = deriveSourceVideoBitrate(options);
+
+  if (!sourceVideoBitRate) {
+    return configuredBitrate;
+  }
+
+  const floor = options.container === "mp4" ? 180_000 : 220_000;
+  const multiplier = options.container === "mp4" ? 2.5 : 3;
+  return Math.min(configuredBitrate, Math.max(floor, Math.round(sourceVideoBitRate * multiplier)));
+}
+
+function selectAudioBitrate(options: BuildTranscodeArgsOptions, audioEncoder: string): number | undefined {
+  const sourceAudioBitRate = options.sourceAudioBitRate;
+
+  if (options.container === "webm") {
+    if (audioEncoder === "libopus" || audioEncoder === "opus") {
+      const derived = sourceAudioBitRate
+        ? clamp(roundToNearest(sourceAudioBitRate * 1.6, 16_000), 64_000, 160_000)
+        : 128_000;
+      return derived;
+    }
+
+    return undefined;
+  }
+
+  if (audioEncoder === "libmp3lame") {
+    return sourceAudioBitRate
+      ? clamp(roundToNearest(sourceAudioBitRate * 1.8, 16_000), 64_000, 160_000)
+      : 96_000;
+  }
+
+  if (audioEncoder === "aac" || audioEncoder === "aac_at") {
+    return sourceAudioBitRate
+      ? clamp(roundToNearest(sourceAudioBitRate * 1.5, 16_000), 64_000, 160_000)
+      : 96_000;
+  }
+
+  return sourceAudioBitRate
+    ? clamp(roundToNearest(sourceAudioBitRate * 1.5, 16_000), 64_000, 160_000)
+    : 96_000;
 }
 
 function pickFirstAvailable(availableEncoders: Set<string>, candidates: string[]): string | undefined {
@@ -51,13 +125,16 @@ export function pickTranscodeEncoders(
 }
 
 export function buildTranscodeArgs(options: BuildTranscodeArgsOptions): string[] {
-  const videoBitrate = bitrateValue(options.maxBitrateMbps);
-  const bufferBitrate = bitrateValue(options.maxBitrateMbps * 2);
   const videoEncoder = options.videoEncoder ?? (options.container === "webm" ? "libvpx" : "libx264");
   const audioEncoder = options.audioEncoder ?? (options.container === "webm" ? "libvorbis" : "libmp3lame");
   const enableExperimentalCodecs = options.enableExperimentalCodecs ?? false;
   const outputFormat = options.container === "webm" ? "webm" : "mp4";
   const isPartialOutput = options.outputPath.toLowerCase().endsWith(".partial");
+  const selectedVideoBitrate = selectVideoBitrate(options);
+  const selectedBufferBitrate = Math.max(selectedVideoBitrate * 2, 512_000);
+  const selectedAudioBitrate = selectAudioBitrate(options, audioEncoder);
+  const videoBitrate = bitrateValue(selectedVideoBitrate);
+  const bufferBitrate = bitrateValue(selectedBufferBitrate);
   const baseArgs = [
     "-hide_banner",
     "-loglevel",
@@ -77,7 +154,7 @@ export function buildTranscodeArgs(options: BuildTranscodeArgsOptions): string[]
 
   if (options.container === "webm") {
     const audioArgs = audioEncoder === "libopus" || audioEncoder === "opus"
-      ? ["-b:a", "160k"]
+      ? ["-b:a", bitrateValue(selectedAudioBitrate ?? 128_000)]
       : ["-q:a", "4"];
 
     return [
@@ -106,7 +183,7 @@ export function buildTranscodeArgs(options: BuildTranscodeArgsOptions): string[]
     ];
   }
 
-  const audioArgs = ["-b:a", "192k"];
+  const audioArgs = ["-b:a", bitrateValue(selectedAudioBitrate ?? 96_000)];
 
   return [
     ...baseArgs,
