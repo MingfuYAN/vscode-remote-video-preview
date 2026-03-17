@@ -2,7 +2,7 @@
   "name": "remote-video-preview",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "publisher": "mfyan",
   "license": "MIT",
   "repository": {
