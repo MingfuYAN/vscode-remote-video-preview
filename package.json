@@ -2,7 +2,7 @@
   "name": "remote-video-preview",
   "displayName": "%extension.displayName%",
   "description": "%extension.description%",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "publisher": "mfyan",
   "license": "MIT",
   "repository": {
@@ -46,6 +46,12 @@
     "onCommand:remoteVideoPreview.showDebugLog"
   ],
   "contributes": {
+    "submenus": [
+      {
+        "id": "remoteVideoPreview.explorer",
+        "label": "%submenus.explorer.label%"
+      }
+    ],
     "commands": [
       {
         "command": "remoteVideoPreview.openWithPreview",
@@ -75,6 +81,13 @@
     ],
     "menus": {
       "explorer/context": [
+        {
+          "submenu": "remoteVideoPreview.explorer",
+          "group": "navigation",
+          "when": "explorerResourceIsFolder == false && (resourceScheme == file || resourceScheme == vscode-remote)"
+        }
+      ],
+      "remoteVideoPreview.explorer": [
         {
           "command": "remoteVideoPreview.openWithPreview",
           "group": "navigation",

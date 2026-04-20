@@ -3,6 +3,7 @@
   "extension.description": "Preview local and Remote SSH video files in VS Code with metadata inspection, compatible cache generation, and FFmpeg-powered transcoding.",
   "capabilities.virtualWorkspaces.description": "Remote Video Preview requires direct filesystem access to invoke ffmpeg and ffprobe.",
   "category.remoteVideoPreview": "Remote Video Preview",
+  "submenus.explorer.label": "Remote Video Preview",
   "commands.openWithPreview.title": "Open With Remote Video Preview",
   "commands.showMetadata.title": "Focus Video Metadata",
   "commands.generateCompatibleCache.title": "Generate Compatible Cache",

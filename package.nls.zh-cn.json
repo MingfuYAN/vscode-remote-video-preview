@@ -3,6 +3,7 @@
   "extension.description": "在 VS Code 中预览本地和 Remote SSH 视频文件，并支持元数据查看、兼容缓存生成和基于 FFmpeg 的转码。",
   "capabilities.virtualWorkspaces.description": "Remote Video Preview 需要直接访问文件系统以调用 ffmpeg 和 ffprobe。",
   "category.remoteVideoPreview": "远程视频预览",
+  "submenus.explorer.label": "远程视频预览",
   "commands.openWithPreview.title": "使用远程视频预览打开",
   "commands.showMetadata.title": "聚焦视频元数据",
   "commands.generateCompatibleCache.title": "生成兼容缓存",
